@@ -53,17 +53,20 @@ fun main(): Unit = runBlocking {
     connectionFactory.declareAndBind(exchange = registrationNotificationExchange, queue = registrationNotificationQueue, routingKey = "42")
 
     val registrationRequestExchange = RabbitExchange(
-        // TODO - rename the request exchange (since you've already declared a direct exchange under the current name)
-        name = "registration-request-exchange",
-        // TODO - use a consistent hash exchange (x-consistent-hash)
-        type = "direct",
-        // TODO - calculate a routing key based on message content
-        routingKeyGenerator = @Suppress("UNUSED_ANONYMOUS_PARAMETER") { message: String -> "42" },
+        // (DONE)TODO - rename the request exchange (since you've already declared a direct exchange under the current name)
+        name = "registration-request-consistent-hash-exchange",
+        // (DONE)TODO - use a consistent hash exchange (x-consistent-hash)
+        type = "x-consistent-hash",
+        // (DONE)TODO - calculate a routing key based on message content
+        routingKeyGenerator = @Suppress("UNUSED_ANONYMOUS_PARAMETER") {  message: String -> message },
     )
-    // TODO - read the queue name from the environment
-    val registrationRequestQueue = RabbitQueue("registration-request")
-    // TODO - read the routing key from the environment
-    connectionFactory.declareAndBind(exchange = registrationRequestExchange, queue = registrationRequestQueue, routingKey = "42")
+    // TODO (DONE) - read the queue name from the environment
+    val registrationRequestQueue = RabbitQueue(
+    System.getenv("REGISTRATION_REQUEST_QUEUE")
+        ?: "registration-request"
+    )
+    // TODO (DONE) - read the routing key from the environment
+    connectionFactory.declareAndBind(exchange = registrationRequestExchange, queue = registrationRequestQueue, routingKey =System.getenv("REGISTRATION_REQUEST_ROUTING_KEY") ?: "1")
 
     listenForRegistrationRequests(
         connectionFactory,
@@ -104,15 +107,15 @@ fun Application.module(
     install(ContentNegotiation) {
         json()
     }
-
+// REQUEST STARTs HERE
     val publishRequest = publish(connectionFactory, registrationRequestExchange)
 
     install(Routing) {
         info()
-        registrationRequest(publishRequest)
-        register(RegistrationConfirmationService(registrationRequestGateway, registrationGateway))
+        registrationRequest(publishRequest) // this underneet is sending the request to rabitmq - registrationRequestExchange
+        register(RegistrationConfirmationService(registrationRequestGateway, registrationGateway)) // this is saving the incoming request
     }
-}
+} // at the end of this the message is in RabbitMQ waiting .....
 
 fun CoroutineScope.listenForRegistrationRequests(
     connectionFactory: ConnectionFactory,
@@ -122,19 +125,22 @@ fun CoroutineScope.listenForRegistrationRequests(
     uuidProvider: UuidProvider = { UUID.randomUUID() },
 ) {
     val publishNotification = publish(connectionFactory, registrationNotificationExchange)
+     // same its a container to public to rabbit mmq
 
     val registrationRequestService = RegistrationRequestService(
         gateway = registrationRequestDataGateway,
         publishNotification = publishNotification,
         uuidProvider = uuidProvider,
-    )
+    ) // container for holding the dependencies to do the actual svae and publish 
 
     launch {
         logger.info("listening for registration requests")
-        val channel = connectionFactory.newConnection().createChannel()
+        val channel = connectionFactory.newConnection().createChannel() //  this channel statys open till the app is running 
+        // Push-based async messaging
         listen(queue = registrationRequestQueue, channel = channel) { email ->
             logger.debug("received registration request for {}", email)
             registrationRequestService.generateCodeAndPublish(email)
         }
-    }
+    } // this is the actual lsitener it creates a channe and listen to the registrationRequestQueue 
+    // once done it gets the generate code and save and publish messge to the registrationNotificationExchange next service 
 }
