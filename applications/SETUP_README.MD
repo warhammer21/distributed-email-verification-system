@@ -51,7 +51,8 @@ password: guest
 In terminal #1:
 
 ```bash
-./gradlew applications:fake-sendgrid:run
+./gradlew platform-support:fake-sendgrid:run
+
 ```
 
 Expected port:
