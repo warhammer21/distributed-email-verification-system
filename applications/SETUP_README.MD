@@ -98,25 +98,36 @@ http://localhost:8081
 # Full Request Flow
 
 ```text
-Client Request
-    ↓
-Registration Server
-    ↓
+Client
+    │
+POST /request-registration
+    │
+    ▼
+Registration Server (HTTP)
+    │
+Publish registration request
+    ▼
 RabbitMQ Exchange
-    ↓
+    ▼
 RabbitMQ Queue
-    ↓
+    ▼
+Registration Server Consumer
+    │
+Generate confirmation code
+    │
+Save request to Registration DB
+    │
+Publish notification message
+    ▼
+RabbitMQ Notification Exchange
+    ▼
+RabbitMQ Notification Queue
+    ▼
 Notification Server Consumer
-    ↓
-Generate Confirmation Code
-    ↓
-Save Request to Database
-    ↓
-Publish Notification Message
-    ↓
+    │
+Send email
+    ▼
 Fake SendGrid
-    ↓
-Email Sent
 ```
 
 ---
