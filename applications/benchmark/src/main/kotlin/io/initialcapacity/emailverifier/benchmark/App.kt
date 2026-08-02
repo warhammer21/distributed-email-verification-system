@@ -16,9 +16,11 @@ data class Confirmation(
 fun main(): Unit = runBlocking {
     val port = getEnvInt("PORT", 9090)
 
+    val registrationCount = getEnvInt("REGISTRATION_COUNT", 5_000)
+
     val benchmark = Benchmark(
         registrationUrl = System.getenv("REGISTRATION_URL") ?: "http://localhost:8081",
-        registrationCount = getEnvInt("REGISTRATION_COUNT", 5_000),
+        registrationCount = registrationCount,
         requestWorkerCount = getEnvInt("REQUEST_WORKER_COUNT", 4),
         registrationWorkerCount = getEnvInt("REGISTRATION_WORKER_COUNT", 4),
         client = HttpClient(Java) {
@@ -27,11 +29,24 @@ fun main(): Unit = runBlocking {
     )
 
     val fakeEmailServer = fakeEmailServer(port, benchmark).apply { start() }
-    benchmark.start(this)
+
+    val duration = benchmark.start(this)
+
+    val registrationsPerSecond =
+        registrationCount.toDouble() / duration.inWholeMilliseconds * 1000
+
+    if (registrationsPerSecond < 50) {
+        System.err.println(
+            "ERROR: Throughput $registrationsPerSecond registrations/sec is below the required 50 registrations/sec."
+        )
+        throw RuntimeException("Business requirement not met")
+    }
+
     fakeEmailServer.stop()
 }
 
-private fun getEnvInt(name: String, default: Int): Int = System.getenv(name)?.toInt() ?: default
+private fun getEnvInt(name: String, default: Int): Int =
+    System.getenv(name)?.toInt() ?: default
 
 private fun fakeEmailServer(
     port: Int,
