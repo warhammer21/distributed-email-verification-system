@@ -99,34 +99,37 @@ http://localhost:8081
 
 ```text
 Client
-    │
-POST /request-registration
-    │
-    ▼
+  │
+  │ POST /request-registration
+  ▼
 Registration Server (HTTP)
-    │
-Publish registration request
-    ▼
-RabbitMQ Exchange
-    ▼
-RabbitMQ Queue
-    ▼
-Registration Server Consumer
-    │
+  │
+  │ publishRequest
+  ▼
+registrationRequestExchange
+  │
+  ▼
+registration-request queue
+  │
+  │ Registration Server Consumer
+  ▼
 Generate confirmation code
-    │
-Save request to Registration DB
-    │
-Publish notification message
-    ▼
-RabbitMQ Notification Exchange
-    ▼
-RabbitMQ Notification Queue
-    ▼
-Notification Server Consumer
-    │
+  │
+  ├── Save request → Registration DB
+  │
+  └── publishNotification
+          │
+          ▼
+registrationNotificationExchange
+          │
+          ▼
+registration-notification queue
+          │
+          │ Notification Server Consumer
+          ▼
 Send email
-    ▼
+  │
+  ▼
 Fake SendGrid
 ```
 
